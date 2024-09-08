@@ -77,7 +77,7 @@ add (x, y) = x + y
 zeroto :: Int -> [Int]
 zeroto n = [0..n]
 
-## Funzioni curried
+## Funzioni curried (applicazione parziale)
 Le funzioni con più argomenti possono essere gestite in un altro modo, sfruttando il fatto che le funzioni sono libere di restituire funzioni come risultati.
 
 ```haskell
@@ -317,3 +317,221 @@ Riscrivibile come `twice f = f . f`
 
 5. Perché non è possibile in generale per i tipi di funzione essere istanze della classe Eq? Quando è possibile? Suggerimento: due funzioni dello stesso tipo sono uguali se restituiscono sempre risultati uguali per argomenti uguali.
 Due funzioni sono uguali quando
+
+# Funzioni
+```haskell
+even :: (Integral a) => a -> Bool
+even n = n `mod` 2 == 0
+
+splitAt :: Int -> [a] -> ([a], [a])
+splitAt n xs = (take n xs, drop n xs)
+
+recip :: (Fractional a) => a -> a
+recip n = 1 / n
+```
+
+## Espressioni condizionali
+```haskell
+abs :: Int -> Int
+abs n = if n >= 0 then n else -n
+
+signum :: Int -> Int
+signum n = if n < 0 then -1 else
+            if n == 0 then 0 else 1
+```
+
+L'unica cosa che distingue le espressioni condizionali da quelle in altri linguaggi è che in Haskell devono avere obbligatoriamente un'espressione else.
+
+## Guardie
+```haskell
+otherwise = True
+
+abs n | n >= 0 = n
+      | otherwise = -n
+
+signum n | n < 0 = -1
+         | n == 0 = 0
+         | otherwise = 1
+```
+
+## Pattern matching
+Una sequenza di espressioni sintattiche chiamate patterns viene usata per scegliere tra un insieme di risultati dello stesso tipo.
+```haskell
+not :: Bool -> Bool
+not False = True
+not True = False
+
+(&&) :: Bool -> Bool -> Bool
+True && True = True
+_ && _ = False
+```
+
+### Pattern matching su tuple
+```haskell
+fst :: (a, b) -> a
+fst (x, _) = x
+
+snd :: (a, b) -> b
+snd (_, y) = y
+```
+
+### Pattern matching su liste
+```haskell
+test :: [Char] -> Bool
+test ['a', _, _] = True
+test _ = False
+
+test :: [Char] -> Bool
+test ('a':_) = True
+test _ = False
+
+head :: [a] -> a
+head (x:_) = x
+
+tail :: [a] -> [a]
+tail (_:xs) = xs
+```
+
+## Espressioni lambda
+```haskell
+\x -> x + x
+
+add :: Int -> (Int -> Int)
+add = \x -> (\y -> x + y)
+
+const :: a -> (b -> a)
+const x = \_ -> x
+
+odds :: Int -> [Int]
+odds n = map f [0..n-1]
+         where f x = x * 2 + 1
+
+odds :: Int -> [Int]
+odds n = map (\x -> x * 2 + 1) [0..n-1]
+```
+
+## Operatori
+Se # è un operatore, allora espressioni della forma (#), (x #) e (# y) per argomenti x e y sono chiamate sezioni, il quale significato può essere formalizzato usando espressioni lambda.
+
+```haskell
+(#) = \x -> (\y -> x # y)
+(#) x = \y -> x # y
+(#) x y = x # y
+```
+Le sezioni hanno tre usi principali:
+1. permettono di costruire funzioni utili in modo compatto, es:
+  (+) è la funzione addizione \x -> (\y -> x + y)
+  (1+) è la funzione successore \y -> 1 + y
+  (1/) è la funzione reciproco \y -> 1 / y
+  (*2) è la funzione doppio \x -> x * 2
+  (/2) è la funzione metà \x -> x / 2
+
+2. servono quando si definisce il tipo degli operatori, perché l'operatore da solo non è una espressione valida in Haskell:
+  (+) :: Int -> Int -> Int
+
+3. servono quando si usano gli operatori come argomenti di altre funzioni
+```haskell
+sum :: [Int] -> Int
+sum = foldl (+) 0
+```
+
+## Esercizi
+1. Usando funzioni di libreria, definisci una funzione halve :: [a] -> ([a], [a]) che divida una lista di lunghezza pari in due metà.
+> halve [1, 2, 3, 4, 5, 6]
+([1, 2, 3], [4, 5, 6])
+
+```haskell
+halve :: [a] -> ([a], [a])
+halve xs = (take (length xs `div` 2) xs, drop (length xs `div` 2) xs)
+-- oppure
+halve xs = let l = length xs `div` 2 in (take l xs, drop l xs)
+```
+2. Definisci una funzione third :: [a] -> a che restituisce il terzo elemento in una lista che contiene almeno tale quantità di elementi usando:
+  a. head e tail;
+  b. list indexing !!;
+  c. pattern matching.
+
+third :: [a] -> a
+third xs = head (tail (tail xs))
+third = head . tail . tail
+
+third xs = xs !! 2
+
+third (_:_:x:_) = x
+third [_, _, x] = x
+
+3. Considera una funzione safetail :: [a] -> [a] che si comporta come tail con la differenza che mappa la lista vuota a sé stessa invece di produrre un errore. Usando tail e la funzione null :: [a] -> Bool che decide se la lista è vuota o no, definisci safetail usando:
+
+  a. una espressione condizionale
+  b. guardie
+  c. pattern matching
+
+safetail :: [a] -> [a]
+safetail xs = if (length xs == 0) then xs else tail xs
+
+safetail xs
+  | null xs = []
+  | otherwise = tail xs
+
+safetail [] = []
+safetail (_ : xs) = xs
+
+4. In una maniera simile al &&, mostra come l'operatore di disgiunzione || può essere definito in quattro modi diversi usando il pattern matching.
+
+(||) :: Bool -> Bool -> Bool
+True || True = True
+True || False = True
+False || True = True
+False || False = True
+
+(||) :: Bool -> Bool -> Bool
+False || False = False
+_ || _ = True
+
+5. Senza usare altre funzioni o operatori di libreria, mostra come il significato della seguente definizione del pattern matching per la congiunzione logica && può essere formalizzata usando le espressioni condizionali:
+True && True = True
+_ && _ = False
+
+if (True && True) then True else if (True && False) then False else if (False && True) then False else False
+
+6. Fai lo stesso per la seguente definizione alternativa, e nota la differenza nel numero di espressioni condizionali necessarie:
+True && b = b
+False && _ = False
+
+if (b) then b else False
+
+7. Mostra come il significato della seguente definizione di funzione curried può essere formalizzato in termini di espressioni lambda:
+mult :: Int -> Int -> Int -> Int
+mult x y z = x * y * z
+
+mult' :: Int -> Int -> Int -> Int
+mult' = \x -> (\y -> (\z -> x * y * z))
+
+8. L'algoritmo di Luhn è usato per verificare che i numeri di carte bancarie non contengano errori semplici (come scrivere male una cifra), e procede come segue:
+  - considera ogni cifra come un numero separato;
+  - spostandosi a sinistra, moltiplicare per 2 ogni cifra in posizione pari partendo dalla penultima
+  - sottrai 9 da ogni numero che ora è maggiore di 9
+  - somma tutti i numeri risultanti
+  - se il totale è divisibile per 10, allora il numero della carta è valido
+
+Definisci una funzione luhnDouble :: Int -> Int che duplica una cifra e sottrae 9 se il risultato è maggiore di 9. Per esempio:
+
+> luhnDouble 3
+6
+> luhnDouble 6
+3
+
+Usando luhnDouble e mod definisci una funzione luhn :: Int -> Int -> Int -> Int -> Bool che decide se un numero bancario di 4 cifre è valido. Per esempio:
+> luhn 1 7 8 4
+True
+
+> luhn 4 7 8 3
+False
+
+```haskell
+luhnDouble :: Int -> Int
+luhnDouble x = if x * 2 > 9 then (x * 2) - 9 else x * 2
+
+luhn :: Int -> Int -> Int -> Int -> Bool
+luhn a b c d = (luhnDouble a + luhnDouble c + b + d) `mod` 10 == 0
+```
